@@ -112,6 +112,13 @@ Los adaptadores web usan `PoliteFetcher`, que:
 | Sitio | Estado | Datos |
 |---|---|---|
 | **Revolico** (`--web revolico`) | Operativo | Título, precio, moneda (CUP/USD/MLC), provincia, municipio, fecha, vistas, anuncio promocionado, vendedor seudónimo. Hasta 100 anuncios por página. |
+| **Cubatel Market** (`--web cubatel`) | Solo con consentimiento escrito (`CUBATEL_CONSENT_REF`) | Nombre, SKU, precio (USD), disponibilidad, estado y tienda vendedora de ≈288 productos (JSON-LD). Catálogo en caché local (TTL 24 h) e histórico para tendencias. |
+
+**Condiciones de uso de los sitios** (revisadas el 2026-09-30; no es asesoramiento legal):
+- **Revolico:** no prohíbe expresamente la lectura automatizada, pero limita el uso de sus contenidos a "uso personal y privado" y prohíbe su explotación comercial sin autorización. Conviene pedir autorización (ayuda@revolico.com).
+- **Cubatel:** prohíbe la "recopilación de datos sistemática o automatizada" sin su consentimiento previo por escrito (un correo electrónico no cuenta). Sin `CUBATEL_CONSENT_REF`, el adaptador no hace ninguna petición y registra la fuente como fallida.
+
+Caché de los adaptadores con histórico: `CONTROLADOR_CACHE_DIR` (por defecto, `~/.cache/controlador_mercado/<fuente>/`, con `catalog.json` e `history.jsonl`).
 
 ```bash
 controlador-mercado analizar --web revolico \
