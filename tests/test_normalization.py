@@ -86,3 +86,13 @@ def test_package_size_is_not_price_basis():
 
     pres = observation_presentation(Observation.from_dict({"source_id": "x", "title": "Arroz 5 libras"}))
     assert pres.origin == "texto" and pres.standard_quantity == pytest.approx(2.26796185)
+
+
+@pytest.mark.parametrize("title,expected", [
+    ("Aceite vegetal puro Mazeite (1. 89 l)", (1.89, "l")),
+    ("aceite vegetal puro – 48 oz (1, 42 litros)", (1.42, "litros")),
+    ("Aceite 17, 3 l", (17.3, "l")),
+    ("Aceite x 3, 900 ml", (900.0, "ml")),
+])
+def test_spaced_decimals(title, expected):
+    assert parse_size(title) == expected

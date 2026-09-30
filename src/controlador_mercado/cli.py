@@ -33,6 +33,10 @@ def _registry(specs: list[str] | None, web: list[str] | None = None) -> SourceRe
             from .adapters import CubatelSource
 
             registry.add(CubatelSource())
+        elif name == "cubamax":
+            from .adapters import CubamaxSource
+
+            registry.add(CubamaxSource())
     if not registry.adapters:
         raise SystemExit("Indica al menos una fuente: --fuente o --web.")
     return registry
@@ -97,7 +101,7 @@ def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--fuente", action="append",
                         help="Archivo o directorio JSON/JSONL autorizado, opcionalmente 'ruta:source_id'. Repetible.")
-    common.add_argument("--web", action="append", choices=["revolico", "cubatel"],
+    common.add_argument("--web", action="append", choices=["revolico", "cubatel", "cubamax"],
                         help="Adaptador web a consultar en vivo. Repetible.")
     common.add_argument("--tipos-cambio", help="JSON con tipos de cambio autorizados y fechados.")
     common.add_argument("--salida", help="Archivo de salida (por defecto, stdout).")

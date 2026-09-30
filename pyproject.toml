@@ -12,6 +12,7 @@ dependencies = ["anthropic>=1.9"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+navegador = ["playwright>=1.55"]
 
 [project.scripts]
 controlador-mercado = "controlador_mercado.cli:main"

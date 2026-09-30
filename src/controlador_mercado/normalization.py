@@ -113,9 +113,19 @@ def unit_info(unit: str | None) -> tuple[str, float] | None:
     return _UNITS.get(normalize_text(unit).rstrip("."))
 
 
+_SPACED_DECIMAL_RE = re.compile(
+    r"(?<![\d.,])(\d{1,3})[.,]\s+(\d{1,2})(?=\s*(?:ml|cl|lts|lt|litros|litro|l|kg|kgs|kilos?|gr|g|lbs?|libras?)(?![a-z]))"
+)
+
+
 def parse_size(text: str) -> tuple[float, str] | None:
-    """Extrae la primera cantidad+unidad física del texto (p. ej. '1,5 L')."""
-    match = _SIZE_RE.search(normalize_text(text))
+    """Extrae la primera cantidad+unidad física del texto (p. ej. '1,5 L').
+
+    Admite decimales escritos con espacio ("1. 89 l", "1, 42 litros"), frecuentes
+    en catálogos; no une listas como "3, 900 ml" (más de dos decimales).
+    """
+    norm = _SPACED_DECIMAL_RE.sub(r"\1.\2", normalize_text(text))
+    match = _SIZE_RE.search(norm)
     if not match:
         return None
     return float(match.group(1).replace(",", ".")), match.group(2)

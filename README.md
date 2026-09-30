@@ -112,11 +112,15 @@ Los adaptadores web usan `PoliteFetcher`, que:
 | Sitio | Estado | Datos |
 |---|---|---|
 | **Revolico** (`--web revolico`) | Operativo | Título, precio, moneda (CUP/USD/MLC), provincia, municipio, fecha, vistas, anuncio promocionado, vendedor seudónimo. Hasta 100 anuncios por página. |
+| **Cubamax Shop** (`--web cubamax`) | Operativo (requiere `pip install -e ".[navegador]"`) | Nombre, precio (USD si la página lo muestra), tienda proveedora, categoría, agotado/disponible, stock y etiquetas de entrega. Precios por **municipio de entrega**. Unos 10 000 productos, 24 por página. |
 | **Cubatel Market** (`--web cubatel`) | Solo con consentimiento escrito (`CUBATEL_CONSENT_REF`) | Nombre, SKU, precio (USD), disponibilidad, estado y tienda vendedora de ≈288 productos (JSON-LD). Catálogo en caché local (TTL 24 h) e histórico para tendencias. |
 
 **Condiciones de uso de los sitios** (revisadas el 2026-09-30; no es asesoramiento legal):
 - **Revolico:** no prohíbe expresamente la lectura automatizada, pero limita el uso de sus contenidos a "uso personal y privado" y prohíbe su explotación comercial sin autorización. Conviene pedir autorización (ayuda@revolico.com).
+- **Cubamax:** no prohíbe expresamente la recopilación automatizada, pero sí "cualquier reproducción de los contenidos del website… sin consentimiento previo".
 - **Cubatel:** prohíbe la "recopilación de datos sistemática o automatizada" sin su consentimiento previo por escrito (un correo electrónico no cuenta). Sin `CUBATEL_CONSENT_REF`, el adaptador no hace ninguna petición y registra la fuente como fallida.
+
+**Cubamax** carga el catálogo desde una API con peticiones firmadas por su propio código. El adaptador no replica esa firma: maneja un Chromium real (sin ocultar que es headless) que elige provincia y municipio en el formulario, usa el buscador de la web (`/es/shop/products?description=…&page=N`) y lee la respuesta que el sitio entrega a esa página. Variables: `CONTROLADOR_CHROMIUM_PATH` (ruta de Chromium). El municipio de cada provincia se configura con `CubamaxSource(municipalities={"La Habana": "Plaza"})`; si no se indica, se usa el primero de la lista.
 
 Caché de los adaptadores con histórico: `CONTROLADOR_CACHE_DIR` (por defecto, `~/.cache/controlador_mercado/<fuente>/`, con `catalog.json` e `history.jsonl`).
 
