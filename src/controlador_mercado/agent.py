@@ -22,7 +22,7 @@ from .analyzer import AnalyzerConfig, MarketAnalyzer
 from .models import Confidence, ReferenceCost, TargetProduct, parse_datetime
 from .sources import ExchangeRateProvider, SourceRegistry
 
-DEFAULT_MODEL = os.environ.get("CONTROLADOR_MODEL", "claude-opus-5-5")
+DEFAULT_MODEL = os.environ.get("CONTROLADOR_MODEL", "claude-sonnet-5-5")
 DEFAULT_EFFORT = os.environ.get("CONTROLADOR_EFFORT", "high")
 PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "system_prompt_es.md"
 FALLBACK_BETA = "server-side-fallback-2026-07-01"

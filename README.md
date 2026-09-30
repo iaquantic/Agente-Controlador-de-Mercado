@@ -71,7 +71,7 @@ controlador-mercado agente "Analiza el aceite de girasol Ole de 1 L en La Habana
   --fuente datos/ --salida informe.json
 ```
 
-Por defecto usa `claude-opus-5-5` con pensamiento adaptativo, esfuerzo `high` (variables `CONTROLADOR_MODEL` y `CONTROLADOR_EFFORT`), salida estructurada con JSON Schema y fallback del lado del servidor ante rechazos (`fallbacks: "default"`).
+Por defecto usa `claude-sonnet-5-5` (Claude Sonnet 5.5) con pensamiento adaptativo, esfuerzo `high` (variables `CONTROLADOR_MODEL` y `CONTROLADOR_EFFORT`), salida estructurada con JSON Schema y fallback del lado del servidor ante rechazos (`fallbacks: "default"`, solo en la Claude API; en Sonnet 5.5 reintenta los rechazos de categoría `cyber` y `frontier_llm`).
 
 ```python
 from controlador_mercado import JsonFileSource, SourceRegistry
