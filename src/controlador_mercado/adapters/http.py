@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
@@ -100,12 +101,12 @@ class HttpResponse:
     headers: dict[str, str] = field(default_factory=dict)
 
 
-Transport = Callable[[str, dict[str, str], float], HttpResponse]
+Transport = Callable[..., HttpResponse]  # (url, headers, timeout[, data]) -> HttpResponse
 
 
-def urllib_transport(url: str, headers: dict[str, str], timeout: float) -> HttpResponse:
+def urllib_transport(url: str, headers: dict[str, str], timeout: float, data: bytes | None = None) -> HttpResponse:
     """Transporte por defecto (stdlib); respeta HTTPS_PROXY y la CA del sistema."""
-    req = urllib.request.Request(url, headers=headers)
+    req = urllib.request.Request(url, headers=headers, data=data, method="POST" if data is not None else "GET")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             body = resp.read().decode(resp.headers.get_content_charset() or "utf-8", errors="replace")
@@ -172,13 +173,23 @@ class PoliteFetcher:
                 raise SourceBlockedError(f"no se pudo leer {robots_url} (HTTP {resp.status}); no se continúa")
         return self._robots[origin]
 
+    def post_json(self, url: str, body: dict) -> HttpResponse:
+        """POST de consulta (búsquedas de solo lectura) con las mismas garantías que ``get``."""
+        return self._request(url, data=json.dumps(body).encode("utf-8"),
+                             headers={"Content-Type": "application/json", "Accept": "application/json"})
+
     def get(self, url: str) -> HttpResponse:
+        return self._request(url)
+
+    def _request(self, url: str, data: bytes | None = None, headers: dict[str, str] | None = None) -> HttpResponse:
         if self.respect_robots:
             robots = self._robots_for(url)
             if robots is not None and not robots.can_fetch(self.user_agent, url):
                 raise RobotsDisallowedError(f"robots.txt prohíbe {url}")
         self._throttle(urlsplit(url).netloc)
-        resp = self.transport(url, self._headers(), self.timeout)
+        all_headers = {**self._headers(), **(headers or {})}
+        resp = (self.transport(url, all_headers, self.timeout) if data is None
+                else self.transport(url, all_headers, self.timeout, data))
         if looks_like_challenge(resp):
             raise SourceBlockedError(
                 f"{urlsplit(url).netloc} respondió con un desafío anti-bot (HTTP {resp.status}). "
