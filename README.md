@@ -101,6 +101,28 @@ Formato de una observación (JSON / JSONL):
 
 Solo son obligatorios `title` y `captured_at` (sin `captured_at` la observación se excluye). Si faltan `quantity`/`unit`, se intentan extraer del título.
 
+### Fuentes web en vivo
+
+Los adaptadores web usan `PoliteFetcher`, que:
+- aplica robots.txt según la RFC 9309 (gana la regla más específica);
+- espacia las peticiones (5 s por defecto);
+- se identifica con un User-Agent propio (`CONTROLADOR_USER_AGENT`);
+- ante un desafío anti-bot (Cloudflare, etc.) se detiene, sin intentar evadirlo, y la fuente queda registrada como fallida.
+
+| Sitio | Estado | Datos |
+|---|---|---|
+| **Revolico** (`--web revolico`) | Operativo | Título, precio, moneda (CUP/USD/MLC), provincia, municipio, fecha, vistas, anuncio promocionado, vendedor seudónimo. Hasta 100 anuncios por página. |
+
+```bash
+controlador-mercado analizar --web revolico \
+  --producto '{"name": "aceite de girasol", "quantity": 1, "unit": "L", "provinces": ["La Habana"]}'
+```
+
+Variables de entorno de Revolico:
+- `CONTROLADOR_SELLER_HASH_KEY`: clave con la que se seudonimizan los vendedores. Los teléfonos no se guardan; solo un HMAC que permite contar vendedores distintos. Sin esta clave, el identificador cambia en cada ejecución.
+- `REVOLICO_AUTH_HEADERS`: cabeceras JSON para un acceso acordado con el sitio.
+- `REVOLICO_BASE_URL`: URL base alternativa.
+
 ## Contrato de salida
 
 Cada análisis devuelve `product`, `analysis_period` (`analysis_start`, `analysis_end`, `analysis_generated_at`, `observation_count`), `market_summary` (afirmaciones etiquetadas HECHO_OBSERVADO / ESTADISTICA_CALCULADA / ESTIMACION / INFERENCIA / DATO_NO_DISPONIBLE), `price_statistics` (por moneda: precio por anuncio y por unidad estándar, por provincia y por fuente), `supply_statistics`, `trends`, `external_indicators`, `market_signals`, `sources`, `data_quality`, `confidence` + `confidence_factors`, `limitations` y `observations` (traza por observación con `raw_value` / `normalized_value`, coincidencia, duplicados y outliers). Una métrica no calculable es `null`.

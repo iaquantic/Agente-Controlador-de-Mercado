@@ -64,3 +64,15 @@ def test_target_without_presentation_cannot_be_exact():
     m = match_observation(target, obs("Aceite de girasol 1 L"))
     assert m.level == MatchLevel.HIGH
     assert m.presentation_status == PresentationStatus.NO_ESPECIFICADA
+
+
+def test_missing_defining_term_is_low():
+    target = TargetProduct(name="aceite de girasol", quantity=1, unit="L")
+    assert match_observation(target, obs("Aceite capilar de romero 30 ml")).level == MatchLevel.LOW
+    assert match_observation(target, obs("Aceite de girasol 900ml")).level == MatchLevel.MEDIUM
+
+
+def test_one_missing_term_of_many_is_medium_or_high():
+    target = TargetProduct(name="leche en polvo entera instantanea", quantity=1, unit="kg")
+    assert match_observation(target, obs("Leche en polvo entera 1 kg")).level == MatchLevel.HIGH
+    assert match_observation(target, obs("Leche en polvo 1 kg")).level == MatchLevel.LOW

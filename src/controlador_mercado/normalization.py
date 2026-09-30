@@ -199,7 +199,25 @@ def build_presentation(
     )
 
 
+_PER_UNIT_RE = re.compile(
+    r"\b(?:el|la|por|cada)\s+(litros?|lts?|kilos?|kilogramos?|kgs?|libras?|lbs?|unidad(?:es)?)(?![a-z])"
+)
+
+
+def parse_price_basis(text: str) -> str | None:
+    """Detecta precios expresados por unidad en el texto ("4.40 USD el litro", "300 CUP/lb")."""
+    match = _PER_UNIT_RE.search(normalize_text((text or "").replace("/", " por ")))
+    return match.group(1) if match else None
+
+
 def observation_presentation(obs: Observation) -> Presentation:
+    if obs.quantity is None and obs.unit is None:
+        basis = parse_price_basis(obs.title)
+        if basis and unit_info(basis):
+            # El precio corresponde a 1 unidad de medida, no al envase mencionado en el texto.
+            pres = build_presentation(1.0, basis, 1)
+            return Presentation(pres.raw_quantity, pres.raw_unit, 1, pres.dimension,
+                                pres.standard_quantity, pres.standard_unit, "texto_precio_por_unidad")
     return build_presentation(obs.quantity, obs.unit, obs.pack_count, obs.title)
 
 
