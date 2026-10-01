@@ -113,9 +113,19 @@ def unit_info(unit: str | None) -> tuple[str, float] | None:
     return _UNITS.get(normalize_text(unit).rstrip("."))
 
 
+_SPACED_DECIMAL_RE = re.compile(
+    r"(?<![\d.,])(\d{1,3})[.,]\s+(\d{1,2})(?=\s*(?:ml|cl|lts|lt|litros|litro|l|kg|kgs|kilos?|gr|g|lbs?|libras?)(?![a-z]))"
+)
+
+
 def parse_size(text: str) -> tuple[float, str] | None:
-    """Extrae la primera cantidad+unidad física del texto (p. ej. '1,5 L')."""
-    match = _SIZE_RE.search(normalize_text(text))
+    """Extrae la primera cantidad+unidad física del texto (p. ej. '1,5 L').
+
+    Admite decimales escritos con espacio ("1. 89 l", "1, 42 litros"), frecuentes
+    en catálogos; no une listas como "3, 900 ml" (más de dos decimales).
+    """
+    norm = _SPACED_DECIMAL_RE.sub(r"\1.\2", normalize_text(text))
+    match = _SIZE_RE.search(norm)
     if not match:
         return None
     return float(match.group(1).replace(",", ".")), match.group(2)
@@ -199,7 +209,25 @@ def build_presentation(
     )
 
 
+_PER_UNIT_RE = re.compile(
+    r"\b(?:el|la|por|cada)\s+(litros?|lts?|kilos?|kilogramos?|kgs?|libras?|lbs?|unidad(?:es)?)(?![a-z])"
+)
+
+
+def parse_price_basis(text: str) -> str | None:
+    """Detecta precios expresados por unidad en el texto ("4.40 USD el litro", "300 CUP/lb")."""
+    match = _PER_UNIT_RE.search(normalize_text((text or "").replace("/", " por ")))
+    return match.group(1) if match else None
+
+
 def observation_presentation(obs: Observation) -> Presentation:
+    if obs.quantity is None and obs.unit is None:
+        basis = parse_price_basis(obs.title)
+        if basis and unit_info(basis):
+            # El precio corresponde a 1 unidad de medida, no al envase mencionado en el texto.
+            pres = build_presentation(1.0, basis, 1)
+            return Presentation(pres.raw_quantity, pres.raw_unit, 1, pres.dimension,
+                                pres.standard_quantity, pres.standard_unit, "texto_precio_por_unidad")
     return build_presentation(obs.quantity, obs.unit, obs.pack_count, obs.title)
 
 

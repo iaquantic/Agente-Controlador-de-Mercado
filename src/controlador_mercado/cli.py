@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -19,11 +20,36 @@ from .models import ReferenceCost, TargetProduct, parse_datetime
 from .sources import ExchangeRateProvider, JsonFileSource, SourceRegistry
 
 
-def _registry(specs: list[str]) -> SourceRegistry:
+def _recorded(source):
+    from .adapters.store import RecordingSource
+
+    return RecordingSource(source)  # guarda cada captura para poder medir tendencias
+
+
+def _registry(specs: list[str] | None, web: list[str] | None = None) -> SourceRegistry:
     registry = SourceRegistry()
-    for spec in specs:
+    for spec in specs or []:
         path, _, source_id = spec.partition(":")
         registry.add(JsonFileSource(path, source_id=source_id or None))
+    for name in web or []:
+        if name == "revolico":
+            from .adapters import RevolicoSource
+
+            registry.add(_recorded(RevolicoSource()))
+        elif name == "cubatel":
+            from .adapters import CubatelSource
+
+            registry.add(CubatelSource())
+        elif name == "cubamax":
+            from .adapters import CubamaxSource
+
+            registry.add(_recorded(CubamaxSource()))
+        elif name == "cuballama":
+            from .adapters import CuballamaSource
+
+            registry.add(_recorded(CuballamaSource()))
+    if not registry.adapters:
+        raise SystemExit("Indica al menos una fuente: --fuente o --web.")
     return registry
 
 
@@ -36,18 +62,33 @@ def _write(data: dict, out: str | None) -> None:
         print(text)
 
 
+def _rates(args: argparse.Namespace, until) -> ExchangeRateProvider:
+    """Tasas del archivo indicado; si no hay, las de elTOQUE cuando ELTOQUE_API_KEY está configurada."""
+    if args.tipos_cambio:
+        return ExchangeRateProvider.from_file(args.tipos_cambio)
+    if args.sin_eltoque or not os.environ.get("ELTOQUE_API_KEY"):
+        return ExchangeRateProvider()
+    from .adapters.eltoque import eltoque_rates
+
+    try:
+        return eltoque_rates(until=until)
+    except Exception as exc:  # noqa: BLE001 - sin tasas no se convierte, pero el análisis sigue
+        print(f"Aviso: no se pudieron obtener las tasas de elTOQUE ({exc}); no habrá conversiones.", file=sys.stderr)
+        return ExchangeRateProvider()
+
+
 def cmd_analizar(args: argparse.Namespace) -> int:
     product = json.loads(Path(args.producto[1:]).read_text("utf-8")) if args.producto.startswith("@") \
         else json.loads(args.producto)
     target = TargetProduct.from_dict(product)
-    registry = _registry(args.fuente)
+    registry = _registry(args.fuente, args.web)
     end = parse_datetime(args.fin)
     start = parse_datetime(args.inicio)
     history_start = parse_datetime(args.historial_desde)
     if history_start is None and end is not None:
         history_start = end - timedelta(weeks=12)
     fetched = registry.fetch_all(target, history_start, end)
-    rates = ExchangeRateProvider.from_file(args.tipos_cambio) if args.tipos_cambio else ExchangeRateProvider()
+    rates = _rates(args, parse_datetime(args.ahora))
     cost = None
     if args.coste_referencia:
         amount, currency = args.coste_referencia.split(":", 1)
@@ -67,8 +108,8 @@ def cmd_analizar(args: argparse.Namespace) -> int:
 def cmd_agente(args: argparse.Namespace) -> int:
     from .agent import AgentError, MarketControllerAgent
 
-    rates = ExchangeRateProvider.from_file(args.tipos_cambio) if args.tipos_cambio else ExchangeRateProvider()
-    agent = MarketControllerAgent(_registry(args.fuente), rate_provider=rates, model=args.modelo, effort=args.esfuerzo)
+    rates = _rates(args, None)
+    agent = MarketControllerAgent(_registry(args.fuente, args.web), rate_provider=rates, model=args.modelo, effort=args.esfuerzo)
     try:
         report = agent.run(args.solicitud)
     except AgentError as exc:
@@ -84,9 +125,13 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--fuente", action="append", required=True,
+    common.add_argument("--fuente", action="append",
                         help="Archivo o directorio JSON/JSONL autorizado, opcionalmente 'ruta:source_id'. Repetible.")
+    common.add_argument("--web", action="append", choices=["revolico", "cubatel", "cubamax", "cuballama"],
+                        help="Adaptador web a consultar en vivo. Repetible.")
     common.add_argument("--tipos-cambio", help="JSON con tipos de cambio autorizados y fechados.")
+    common.add_argument("--sin-eltoque", action="store_true",
+                        help="No consultar elTOQUE aunque ELTOQUE_API_KEY esté configurada.")
     common.add_argument("--salida", help="Archivo de salida (por defecto, stdout).")
     common.add_argument("--sin-traza", action="store_true", help="Omitir la traza por observación.")
 

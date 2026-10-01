@@ -45,6 +45,7 @@ def test_conversion_only_with_authorized_rate():
     assert conv["evidence_type"] == "ESTIMACION"
     assert conv["by_currency"]["USD"]["price_median"] == 1600
     assert conv["by_currency"]["USD"]["rate_source"] == "tasa autorizada de prueba"
+    assert conv["by_currency"]["USD"]["unit_price"]["volumen"]["price_median"] == 1600  # 4 USD/L -> CUP/L
     # El precio original se conserva.
     assert res["price_statistics"]["by_currency"]["USD"]["presentation_price"]["price_median"] == 4
 

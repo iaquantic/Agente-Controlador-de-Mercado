@@ -130,8 +130,13 @@ def match_observation(target: TargetProduct, obs: Observation) -> MatchResult:
         coverage = 1.0 if brand_status == "confirmada" else 0.0
     reasons.append(f"cobertura de términos: {coverage:.0%} de {len(wanted)}")
 
+    missing = len(wanted) - round(coverage * len(wanted)) if wanted else 0
     if coverage >= 1.0:
         level = MatchLevel.EXACT
+    elif len(wanted) <= 2 or missing > 1:
+        # Con pocos términos cada uno define el producto ("aceite" sin "girasol"
+        # puede ser aceite capilar); y faltar más de un término es coincidencia débil.
+        level = MatchLevel.LOW if coverage >= 0.25 else MatchLevel.NO_MATCH
     elif coverage >= 0.75:
         level = MatchLevel.HIGH
     elif coverage >= 0.5:
