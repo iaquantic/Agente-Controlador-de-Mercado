@@ -60,7 +60,7 @@ controlador-mercado analizar \
   --salida informe.json
 ```
 
-Opciones: `--granularidad day|week|month`, `--convertir-a CUP --tipos-cambio tasas.json` (solo con tasas autorizadas y fechadas), `--coste-referencia 800:CUP` (simulación de margen potencial etiquetada como estimación), `--sin-traza`.
+Opciones: `--granularidad day|week|month`, `--convertir-a USD|CUP` (con las tasas de elTOQUE o de `--tipos-cambio tasas.json`; ver abajo), `--coste-referencia 800:CUP` (simulación de margen potencial etiquetada como estimación), `--sin-traza`.
 
 ### Agente completo (Claude API)
 
@@ -115,6 +115,7 @@ Los adaptadores web usan `PoliteFetcher`, que:
 | **Cuballama** (`--web cuballama`) | Operativo | **Mercado**: ofertas de negocios que venden y entregan en Cuba (el vendedor es el negocio; precio en USD sin la entrega). **Envíos**: productos enviados desde el extranjero (precio = producto + envío más barato, como en la web). Por provincia. |
 | **Cubamax Shop** (`--web cubamax`) | Operativo (requiere `pip install -e ".[navegador]"`) | Nombre, precio (USD si la página lo muestra), tienda proveedora, categoría, agotado/disponible, stock y etiquetas de entrega. Precios por **municipio de entrega**. Unos 10 000 productos, 24 por página. |
 | **Cubatel Market** (`--web cubatel`) | Solo con consentimiento escrito (`CUBATEL_CONSENT_REF`) | Nombre, SKU, precio (USD), disponibilidad, estado y tienda vendedora de ≈288 productos (JSON-LD). Catálogo en caché local (TTL 24 h) e histórico para tendencias. |
+| **Supermarket 23** | Bloqueado desde servidores | La web es una app Angular que obtiene un token anónimo de `login.supermarket23.com`; Cloudflare responde 403 a esa petición desde IPs de centro de datos, incluso con un navegador real. No hay adaptador: solo podría intentarse desde una IP que el sitio no bloquee. |
 
 **Condiciones de uso de los sitios** (revisadas el 2026-09-30; no es asesoramiento legal):
 - **Revolico:** no prohíbe expresamente la lectura automatizada, pero limita el uso de sus contenidos a "uso personal y privado" y prohíbe su explotación comercial sin autorización. Conviene pedir autorización (ayuda@revolico.com).
@@ -124,7 +125,16 @@ Los adaptadores web usan `PoliteFetcher`, que:
 
 **Cubamax** carga el catálogo desde una API con peticiones firmadas por su propio código. El adaptador no replica esa firma: maneja un Chromium real (sin ocultar que es headless) que elige provincia y municipio en el formulario, usa el buscador de la web (`/es/shop/products?description=…&page=N`) y lee la respuesta que el sitio entrega a esa página. Variables: `CONTROLADOR_CHROMIUM_PATH` (ruta de Chromium). El municipio de cada provincia se configura con `CubamaxSource(municipalities={"La Habana": "Plaza"})`; si no se indica, se usa el primero de la lista.
 
-Caché de los adaptadores con histórico: `CONTROLADOR_CACHE_DIR` (por defecto, `~/.cache/controlador_mercado/<fuente>/`, con `catalog.json` e `history.jsonl`).
+**Histórico.** Las fuentes web solo muestran el estado actual. Cada ejecución añade sus capturas a `history.jsonl` (sin sobrescribir) y el análisis usa todas las del intervalo, agrupadas por fecha de captura: las tendencias aparecen tras 3 periodos (por defecto, 3 semanas con al menos una ejecución semanal). Directorio: `CONTROLADOR_CACHE_DIR` (por defecto, `~/.cache/controlador_mercado/<fuente>/`).
+
+### Tipos de cambio (elTOQUE)
+
+Con `ELTOQUE_API_KEY` configurada, `analizar` y `agente` consultan la TRMI de elTOQUE (`tasas.eltoque.com/v1/trmi`, últimas 24 h): CUP por USD, EUR y MLC, fechadas y con la fuente indicada como tasa **informal, no oficial**. Las conversiones se etiquetan como estimación y los precios originales se conservan. `--tipos-cambio archivo.json` tiene prioridad; `--sin-eltoque` desactiva la consulta.
+
+```bash
+controlador-mercado analizar --web revolico --web cuballama --web cubamax --convertir-a USD \
+  --producto '{"name": "aceite girasol", "quantity": 1, "unit": "L", "provinces": ["La Habana"]}'
+```
 
 ```bash
 controlador-mercado analizar --web revolico \
@@ -132,7 +142,7 @@ controlador-mercado analizar --web revolico \
 ```
 
 Variables de entorno de Revolico:
-- `CONTROLADOR_SELLER_HASH_KEY`: clave con la que se seudonimizan los vendedores. Los teléfonos no se guardan; solo un HMAC que permite contar vendedores distintos. Sin esta clave, el identificador cambia en cada ejecución.
+- `CONTROLADOR_SELLER_HASH_KEY` (opcional): clave con la que se seudonimizan los vendedores. Los teléfonos no se guardan; solo un HMAC que permite contar vendedores distintos. Sin esta clave se genera una y se guarda en la caché local, para que el identificador sea estable entre ejecuciones.
 - `REVOLICO_AUTH_HEADERS`: cabeceras JSON para un acceso acordado con el sitio.
 - `REVOLICO_BASE_URL`: URL base alternativa.
 

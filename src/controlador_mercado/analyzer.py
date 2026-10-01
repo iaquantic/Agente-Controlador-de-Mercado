@@ -477,15 +477,22 @@ class MarketAnalyzer:
                 limitations.append(f"No hay tipo de cambio autorizado {cur}->{convert_to}; no se convierte.")
                 continue
             factor, rate_obj = rate
-            pres = price_statistics["by_currency"][cur]["presentation_price"]
+            stats = price_statistics["by_currency"][cur]
             out["by_currency"][cur] = {
                 "rate": factor,
                 "rate_as_of": _iso(rate_obj.as_of),
                 "rate_source": rate_obj.source,
-                "price_median": _r(pres["price_median"] * factor) if pres["price_median"] is not None else None,
-                "price_min": _r(pres["price_min"] * factor) if pres["price_min"] is not None else None,
-                "price_max": _r(pres["price_max"] * factor) if pres["price_max"] is not None else None,
+                **self._scaled(stats["presentation_price"], factor),
+                "unit_price": {dim: {"standard_unit": u.get("standard_unit"), **self._scaled(u, factor)}
+                               for dim, u in (stats.get("unit_price") or {}).items()},
             }
+        return out
+
+    @staticmethod
+    def _scaled(block: dict, factor: float) -> dict:
+        out = {"n": block.get("n")}
+        for key in ("price_median", "price_min", "price_max"):
+            out[key] = _r(block[key] * factor) if block.get(key) is not None else None
         return out
 
     @staticmethod

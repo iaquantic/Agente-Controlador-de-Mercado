@@ -16,8 +16,9 @@ incluye ``__NEXT_DATA__`` con el estado de Apollo:
 
 Privacidad: los teléfonos NO se guardan. Solo se deriva un identificador de
 vendedor seudónimo (HMAC-SHA256 con la clave ``CONTROLADOR_SELLER_HASH_KEY``)
-para contar vendedores distintos. Sin esa clave, el identificador solo es
-estable dentro de una misma ejecución.
+para contar vendedores distintos. Sin esa clave se genera una aleatoria y se
+guarda en la caché local (``CONTROLADOR_CACHE_DIR``), para que el identificador
+sea estable entre ejecuciones.
 
 Si la estructura cambia, se recurre a un parser genérico (JSON-LD, RSC de
 Next.js u objetos con título y precio).
@@ -40,6 +41,7 @@ from urllib.parse import urlencode, urljoin
 from ..models import Observation, TargetProduct, parse_datetime
 from ..sources import SourceAdapter
 from .http import PoliteFetcher
+from .store import default_cache_dir
 
 DEFAULT_BASE_URL = "https://www.revolico.com"
 
@@ -144,8 +146,22 @@ _PER_RUN_KEY = secrets.token_bytes(32)
 
 
 def _seller_key() -> bytes:
+    """Clave del HMAC: la variable de entorno o, si falta, una aleatoria guardada en la caché local.
+
+    Debe ser estable entre ejecuciones: con histórico, un seudónimo distinto en
+    cada captura contaría dos veces al mismo vendedor.
+    """
     key = os.environ.get("CONTROLADOR_SELLER_HASH_KEY")
-    return key.encode() if key else _PER_RUN_KEY
+    if key:
+        return key.encode()
+    path = default_cache_dir("seller_hash_key")
+    try:
+        if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(secrets.token_hex(32), encoding="utf-8")
+        return path.read_text(encoding="utf-8").strip().encode()
+    except OSError:
+        return _PER_RUN_KEY  # sin caché escribible: estable solo dentro de esta ejecución
 
 
 def pseudonymous_seller(ad: dict) -> str | None:

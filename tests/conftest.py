@@ -24,3 +24,9 @@ def make_obs(i: int, **kw) -> Observation:
 @pytest.fixture
 def now():
     return NOW
+
+
+@pytest.fixture(autouse=True)
+def _cache_aislada(monkeypatch, tmp_path):
+    """Ningún test escribe en la caché real del usuario."""
+    monkeypatch.setenv("CONTROLADOR_CACHE_DIR", str(tmp_path / "cache"))

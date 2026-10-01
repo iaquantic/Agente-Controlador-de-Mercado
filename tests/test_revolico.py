@@ -229,3 +229,13 @@ def test_robots_wildcards():
     assert rules.can_fetch("x", "https://s.com/es/carro/ver")
     assert not rules.can_fetch("x", "https://s.com/api/privado")
     assert rules.can_fetch("x", "https://s.com/api/publico/1")
+
+
+def test_seller_key_is_persisted_between_runs(monkeypatch, tmp_path):
+    from controlador_mercado.adapters import revolico
+
+    monkeypatch.delenv("CONTROLADOR_SELLER_HASH_KEY", raising=False)
+    monkeypatch.setenv("CONTROLADOR_CACHE_DIR", str(tmp_path))
+    first = revolico._seller_key()
+    assert first == revolico._seller_key()
+    assert (tmp_path / "seller_hash_key").read_text().strip().encode() == first
